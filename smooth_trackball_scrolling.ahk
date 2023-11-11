@@ -31,6 +31,8 @@ global active := 0
 global windowUnderMouse := 0
 global cursorX := 0
 global cursorY := 0
+global cursorXMouseGetPos := 0
+global cursorYMouseGetPos := 0
 global accumulatorX := 0
 global accumulatorY := 0
 
@@ -228,7 +230,7 @@ hotkeyOn:
         snapState := 0
         snapDeviation := 0.0
         SmoothingWindowsReset()
-        MouseGetPos ,,, windowUnderMouse
+        MouseGetPos , cursorXMouseGetPos, cursorYMouseGetPos, windowUnderMouse
         SetTimer Timer, %refreshInterval%
     }
 return
@@ -295,10 +297,10 @@ Timer:
     If (snapOn = 0 or snapState = 3) {
         ; Snapping is off
         If (smoothedX != 0) {
-            PostWheelHorizontal(smoothedX, 0x0, cursorX, cursorY, windowUnderMouse)
+            PostWheelHorizontal(smoothedX, 0x0, cursorXMouseGetPos, cursorYMouseGetPos, windowUnderMouse)
         }
         If (smoothedY != 0) {
-            PostWheelVertical(smoothedY, 0x0, cursorX, cursorY, windowUnderMouse)
+            PostWheelVertical(smoothedY, 0x0, cursorXMouseGetPos, cursorYMouseGetPos, windowUnderMouse)
         }
 
     } Else If (snapState = 1) {
@@ -312,20 +314,20 @@ Timer:
         If (Abs(snapDeviation) > snapThreshold) {
             If (alwaysSnap = 1) {
                 ; Switch to Y axis snap
-                PostWheelVertical(smoothedY, 0x0, cursorX, cursorY, windowUnderMouse)
+                PostWheelVertical(smoothedY, 0x0, cursorXMouseGetPos, cursorYMouseGetPos, windowUnderMouse)
                 snapState := 2
                 snapDeviation := 0.0
                 SmoothingWindowsReset()
             } Else {
                 ; Switch to no snap
-                PostWheelHorizontal(smoothedX, 0x0, cursorX, cursorY, windowUnderMouse)
-                PostWheelVertical(smoothedY, 0x0, cursorX, cursorY, windowUnderMouse)
+                PostWheelHorizontal(smoothedX, 0x0, cursorXMouseGetPos, cursorYMouseGetPos, windowUnderMouse)
+                PostWheelVertical(smoothedY, 0x0, cursorXMouseGetPos, cursorYMouseGetPos, windowUnderMouse)
                 snapState := 3
                 snapDeviation := 0
                 SmoothingWindowsReset()
             }
         } Else {
-            PostWheelHorizontal(smoothedX, 0x0, cursorX, cursorY, windowUnderMouse)
+            PostWheelHorizontal(smoothedX, 0x0, cursorXMouseGetPos, cursorYMouseGetPos, windowUnderMouse)
         }
 
 
@@ -340,35 +342,35 @@ Timer:
         If (Abs(snapDeviation) > snapThreshold) {
             If (alwaysSnap = 1) {
                 ; Switch to X axis snap
-                PostWheelHorizontal(smoothedX, 0x0, cursorX, cursorY, windowUnderMouse)
+                PostWheelHorizontal(smoothedX, 0x0, cursorXMouseGetPos, cursorYMouseGetPos, windowUnderMouse)
                 snapState := 1
                 snapDeviation := 0.0
                 SmoothingWindowsReset()
             } Else {
                 ; Switch to no snap
-                PostWheelHorizontal(smoothedX, 0x0, cursorX, cursorY, windowUnderMouse)
-                PostWheelVertical(smoothedY, 0x0, cursorX, cursorY, windowUnderMouse)
+                PostWheelHorizontal(smoothedX, 0x0, cursorXMouseGetPos, cursorYMouseGetPos, windowUnderMouse)
+                PostWheelVertical(smoothedY, 0x0, cursorXMouseGetPos, cursorYMouseGetPos, windowUnderMouse)
                 snapState := 3
                 snapDeviation := 0
                 SmoothingWindowsReset()
             }
         } Else {
-            PostWheelVertical(smoothedY, 0x0, cursorX, cursorY, windowUnderMouse)
+            PostWheelVertical(smoothedY, 0x0, cursorXMouseGetPos, cursorYMouseGetPos, windowUnderMouse)
         }
 
     } Else {
         ; Snap direction not determined yet
         If (smoothedX = 0 and smoothedY = 0) {
         } Else If (Abs(smoothedX) = Abs(smoothedY)) {
-            PostWheelHorizontal(smoothedX, 0x0, cursorX, cursorY, windowUnderMouse)
-            PostWheelVertical(smoothedY, 0x0, cursorX, cursorY, windowUnderMouse)
+            PostWheelHorizontal(smoothedX, 0x0, cursorXMouseGetPos, cursorYMouseGetPos, windowUnderMouse)
+            PostWheelVertical(smoothedY, 0x0, cursorXMouseGetPos, cursorYMouseGetPos, windowUnderMouse)
         } Else If (Abs(smoothedX) > Abs(smoothedY)) {
             ; Switch to X axis snap
-            PostWheelHorizontal(smoothedX, 0x0, cursorX, cursorY, windowUnderMouse)
+            PostWheelHorizontal(smoothedX, 0x0, cursorXMouseGetPos, cursorYMouseGetPos, windowUnderMouse)
             snapState := 1
         } Else {
             ; Switch to Y axis snap
-            PostWheelVertical(smoothedY, 0x0, cursorX, cursorY, windowUnderMouse)
+            PostWheelVertical(smoothedY, 0x0, cursorXMouseGetPos, cursorYMouseGetPos, windowUnderMouse)
             snapState := 2
         }
     }
@@ -428,6 +430,7 @@ PostWheelVertical(delta, modifiers, x, y, targetWindow) {
     highOrderY := y & 0xFFFF
     ; Windows message magic, 0x20A is WM_MOUSEWHEEL
     PostMessage, 0x20A, Round(delta) << 16 | modifiers, highOrderY << 16 | lowOrderX ,, ahk_id %targetWindow%
+    ; ToolTip, %xPos% %yPos% %windowUnderMouse% %delta%
 }
 
 PostWheelHorizontal(delta, modifiers, x, y, targetWindow) {
