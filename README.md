@@ -11,7 +11,7 @@ However, this script seeks to differentiate itself by implementing continuous sc
 ## Settings
 
 - `Hotkey`: What key to use as the hotkey. See the [AHK docs](https://www.autohotkey.com/docs/v1/Hotkeys.htm) for more information on how to format this.
-- `Refresh Interval`: How often the script sends mouse wheel updates. I recommend keeping this at the minimum (10ms) unless you're experiencing problems with programs not being able to keep up with that rate.
+- `Refresh Interval`: How often the script sends mouse wheel updates. The minimum and default value is 10 (ms). I recommend trying to use this value, but if you experience some apps behaving weirdly or inconsistently in response to scrolling, try bumping it up to something like 16 or 20.
 - `Smoothing Window Size`: How much smoothing to apply. Higher values correspond to more smoothing. I recommend a value around 10.
 - `Sensitivity`: Movement sensitivity. I recommend a value around 4.
 - `Invert Direction`: Inverts scrolling direction.
