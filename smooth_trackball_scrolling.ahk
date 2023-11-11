@@ -19,6 +19,7 @@ global smoothingWindowMaxSize := ""
 global invertDirection := ""
 global refreshInterval := ""
 global snapOn := ""
+global alwaysSnap := ""
 global snapThreshold := ""
 global snapRatio := ""
 
@@ -66,6 +67,7 @@ InitializeGui:
     RegRead, invertDirection, HKEY_CURRENT_USER\Software\Smooth Trackball Scrolling, invertDirection
     RegRead, refreshInterval, HKEY_CURRENT_USER\Software\Smooth Trackball Scrolling, refreshInterval
     RegRead, snapOn, HKEY_CURRENT_USER\Software\Smooth Trackball Scrolling, snapOn
+    RegRead, alwaysSnap, HKEY_CURRENT_USER\Software\Smooth Trackball Scrolling, alwaysSnap
     RegRead, snapThreshold, HKEY_CURRENT_USER\Software\Smooth Trackball Scrolling, snapThreshold
     RegRead, snapRatio, HKEY_CURRENT_USER\Software\Smooth Trackball Scrolling, snapRatio
     RegRead, runOnStartup, HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Run, Smooth Trackball Scrolling
@@ -88,6 +90,9 @@ InitializeGui:
     }
     If (snapOn = "") {
         snapOn := 1
+    }
+    If (alwaysSnap = "") {
+        alwaysSnap := 1
     }
     If (snapThreshold = "") {
         snapThreshold := 10
@@ -154,6 +159,9 @@ Settings:
 
     Gui, Add, Checkbox, vGuiSnapOn, Angle Snapping On
     GuiControl,,GuiSnapOn, %snapOn%
+
+    Gui, Add, Checkbox, vGuiAlwaysSnap, Always Angle Snap
+    GuiControl,,GuiAlwaysSnap, %alwaysSnap%
     
     Gui, Add, Text,,  ; spacer
 
@@ -169,6 +177,7 @@ ButtonSaveSettings:
     GuiControlGet, snapThreshold,, GuiSnapThreshold
     GuiControlGet, snapRatio,, GuiSnapRatio
     GuiControlGet, snapOn,, GuiSnapOn
+    GuiControlGet, alwaysSnap,, GuiAlwaysSnap
     Gui Hide
     RegWrite, REG_SZ, HKEY_CURRENT_USER\Software\Smooth Trackball Scrolling, smoothTrackballScrollingShortcut, %smoothTrackballScrollingShortcut%
     RegWrite, REG_DWORD, HKEY_CURRENT_USER\Software\Smooth Trackball Scrolling, sensitivity, %sensitivity%
@@ -178,6 +187,7 @@ ButtonSaveSettings:
     RegWrite, REG_SZ, HKEY_CURRENT_USER\Software\Smooth Trackball Scrolling, snapThreshold, %snapThreshold%
     RegWrite, REG_SZ, HKEY_CURRENT_USER\Software\Smooth Trackball Scrolling, snapRatio, %snapRatio%
     RegWrite, REG_DWORD, HKEY_CURRENT_USER\Software\Smooth Trackball Scrolling, snapOn, %snapOn%
+    RegWrite, REG_DWORD, HKEY_CURRENT_USER\Software\Smooth Trackball Scrolling, alwaysSnap, %alwaysSnap%
     GOSUB UpdateDynamicHotKeys
 return
 
@@ -282,7 +292,7 @@ Timer:
 
     ; Post wheel movements based on snap logic
 
-    If (snapOn = 0) {
+    If (snapOn = 0 or snapState = 3) {
         ; Snapping is off
         If (smoothedX != 0) {
             PostWheelHorizontal(smoothedX, 0x0, cursorX, cursorY, windowUnderMouse)
@@ -300,11 +310,20 @@ Timer:
             snapDeviation := Min(0, snapDeviation + Abs(smoothedX) * snapRatio)
         }
         If (Abs(snapDeviation) > snapThreshold) {
-            ; Switch to Y axis snap
-            PostWheelVertical(smoothedY, 0x0, cursorX, cursorY, windowUnderMouse)
-            snapState := 2
-            snapDeviation := 0.0
-            SmoothingWindowsReset()
+            If (alwaysSnap = 1) {
+                ; Switch to Y axis snap
+                PostWheelVertical(smoothedY, 0x0, cursorX, cursorY, windowUnderMouse)
+                snapState := 2
+                snapDeviation := 0.0
+                SmoothingWindowsReset()
+            } Else {
+                ; Switch to no snap
+                PostWheelHorizontal(smoothedX, 0x0, cursorX, cursorY, windowUnderMouse)
+                PostWheelVertical(smoothedY, 0x0, cursorX, cursorY, windowUnderMouse)
+                snapState := 3
+                snapDeviation := 0
+                SmoothingWindowsReset()
+            }
         } Else {
             PostWheelHorizontal(smoothedX, 0x0, cursorX, cursorY, windowUnderMouse)
         }
@@ -319,11 +338,20 @@ Timer:
             snapDeviation := Min(0, snapDeviation + Abs(smoothedY) * snapRatio)
         }
         If (Abs(snapDeviation) > snapThreshold) {
-            ; Switch to X axis snap
-            PostWheelHorizontal(smoothedX, 0x0, cursorX, cursorY, windowUnderMouse)
-            snapState := 1
-            snapDeviation := 0.0
-            SmoothingWindowsReset()
+            If (alwaysSnap = 1) {
+                ; Switch to X axis snap
+                PostWheelHorizontal(smoothedX, 0x0, cursorX, cursorY, windowUnderMouse)
+                snapState := 1
+                snapDeviation := 0.0
+                SmoothingWindowsReset()
+            } Else {
+                ; Switch to no snap
+                PostWheelHorizontal(smoothedX, 0x0, cursorX, cursorY, windowUnderMouse)
+                PostWheelVertical(smoothedY, 0x0, cursorX, cursorY, windowUnderMouse)
+                snapState := 3
+                snapDeviation := 0
+                SmoothingWindowsReset()
+            }
         } Else {
             PostWheelVertical(smoothedY, 0x0, cursorX, cursorY, windowUnderMouse)
         }
