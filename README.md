@@ -11,8 +11,8 @@ However, this script seeks to differentiate itself by implementing continuous sc
 ## Settings
 
 - `Hotkey`: What key to use as the hotkey. See the [AHK docs](https://www.autohotkey.com/docs/v1/Hotkeys.htm) for more information on how to format this.
-- `Refresh Interval`: How often the script sends mouse wheel updates. The minimum and default value is 10 (ms). I recommend trying to use this value, but if you experience some apps behaving weirdly or inconsistently in response to scrolling, try bumping it up to something like 16 or 20.
-- `Smoothing Window Size`: How much smoothing to apply. Higher values correspond to more smoothing. I recommend a value around 10.
+- `Refresh Interval`: How often the script sends mouse wheel updates. The minimum and default value is 10 (ms). I recommend trying to use this value, but if you experience some apps behaving weirdly or inconsistently in response to scrolling, try bumping it up to something like 16 or 20. Basically set this to as low as it can go without causing problems.
+- `Smoothing Window Size`: How much smoothing to apply. Higher values correspond to more smoothing and "momentum". Lower settings are snappier and more responsive. I recommend a value around 3 to 10, depending on your personal preference. If you increase your `Refresh Interval`, you might want to decrease your `Smoothing Window Size`, as the total amount of smoothing actually scales with the product of these two parameters.
 - `Sensitivity`: Movement sensitivity. I recommend a value around 4.
 - `Invert Direction`: Inverts scrolling direction.
 - `Angle Snapping Threshold`: Controls how hard it is to break away from being snapped to an axis. This parameter sets how much you have to move perpendiular to the axis to become un-snapped. A higher value will make it harder to un-snap from an axis. I recommend a value around 10, but this depends on how you want your snapping to work.
