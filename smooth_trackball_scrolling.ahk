@@ -4,6 +4,7 @@
 
 #Persistent
 #SingleInstance Force
+#UseHook On
 
 SetTitleMatchMode RegEx
 CoordMode, Mouse, Screen
@@ -18,10 +19,18 @@ global sensitivity := ""
 global smoothingWindowMaxSize := ""
 global invertDirection := ""
 global refreshInterval := ""
+
 global snapOn := ""
 global alwaysSnap := ""
 global snapThreshold := ""
 global snapRatio := ""
+
+global addCtrl := ""
+global addShift := ""
+global addAlt := ""
+
+; Non-user settable parameters
+global lastMoveThreshold := 100
 
 ; Mouse hook pointer
 global hHook := 0
@@ -45,6 +54,10 @@ global smoothingWindowX := []
 global smoothingWindowY := []
 global smoothingWindowNextIndex := 0
 global smoothingWindowCurrentSize := 0
+
+; State variables - emulating modifier functions
+global lastMoveTick := 0
+global emulateModifiers := 0
 
 
 ; =============================================================================
@@ -72,6 +85,10 @@ InitializeGui:
     RegRead, alwaysSnap, HKEY_CURRENT_USER\Software\Smooth Trackball Scrolling, alwaysSnap
     RegRead, snapThreshold, HKEY_CURRENT_USER\Software\Smooth Trackball Scrolling, snapThreshold
     RegRead, snapRatio, HKEY_CURRENT_USER\Software\Smooth Trackball Scrolling, snapRatio
+    RegRead, addCtrl, HKEY_CURRENT_USER\Software\Smooth Trackball Scrolling, addCtrl
+    RegRead, addShift, HKEY_CURRENT_USER\Software\Smooth Trackball Scrolling, addShift
+    RegRead, addAlt, HKEY_CURRENT_USER\Software\Smooth Trackball Scrolling, addAlt
+
     RegRead, runOnStartup, HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Run, Smooth Trackball Scrolling
 
     ; Default values
@@ -102,6 +119,15 @@ InitializeGui:
     If (snapRatio = "") {
         snapRatio := 1.5
     }
+    If (addCtrl = "") {
+        addCtrl := 0
+    }
+    If (addShift = "") {
+        addShift := 0
+    }
+    If (addAlt = "") {
+        addAlt := 0
+    }
     If (runOnStartup = "") {
         runOnStartup := false
     } Else {
@@ -124,13 +150,13 @@ RunOnStartup:
 return
 
 UpdateDynamicHotKeys:
-    Hotkey, %smoothTrackballScrollingShortcut%, hotkeyOn
-    Hotkey, %smoothTrackballScrollingShortcut% Up, hotkeyOff
+    Hotkey, %smoothTrackballScrollingShortcut%, HotkeyOn
+    Hotkey, %smoothTrackballScrollingShortcut% Up, HotkeyOff
 return
 
 Settings:
     Gui New, -Resize, Settings
-    Gui Show, W220 H400
+    Gui Show, W220 H500
 
     Gui, Add, Text,, Hotkey:
     GUI, Add, Edit, vGuiSmoothTrackballScrollingShortcut
@@ -167,6 +193,19 @@ Settings:
     
     Gui, Add, Text,,  ; spacer
 
+    Gui, Add, Text,, While mouse isn't moving:
+
+    Gui, Add, Checkbox, vGuiAddCtrl, Emulate Ctrl
+    GuiControl,,GuiAddCtrl, %addCtrl%
+
+    Gui, Add, Checkbox, vGuiAddShift, Emulate Shift
+    GuiControl,,GuiAddShift, %addShift%
+
+    Gui, Add, Checkbox, vGuiAddAlt, Emulate Alt
+    GuiControl,,GuiAddAlt, %addAlt%
+
+    Gui, Add, Text,,  ; spacer
+
     Gui, Add, Button, Default, Save Settings
 return
 
@@ -180,6 +219,9 @@ ButtonSaveSettings:
     GuiControlGet, snapRatio,, GuiSnapRatio
     GuiControlGet, snapOn,, GuiSnapOn
     GuiControlGet, alwaysSnap,, GuiAlwaysSnap
+    GuiControlGet, addCtrl,, GuiAddCtrl
+    GuiControlGet, addShift,, GuiAddShift
+    GuiControlGet, addAlt,, GuiAddAlt
     Gui Hide
     RegWrite, REG_SZ, HKEY_CURRENT_USER\Software\Smooth Trackball Scrolling, smoothTrackballScrollingShortcut, %smoothTrackballScrollingShortcut%
     RegWrite, REG_DWORD, HKEY_CURRENT_USER\Software\Smooth Trackball Scrolling, sensitivity, %sensitivity%
@@ -190,6 +232,9 @@ ButtonSaveSettings:
     RegWrite, REG_SZ, HKEY_CURRENT_USER\Software\Smooth Trackball Scrolling, snapRatio, %snapRatio%
     RegWrite, REG_DWORD, HKEY_CURRENT_USER\Software\Smooth Trackball Scrolling, snapOn, %snapOn%
     RegWrite, REG_DWORD, HKEY_CURRENT_USER\Software\Smooth Trackball Scrolling, alwaysSnap, %alwaysSnap%
+    RegWrite, REG_DWORD, HKEY_CURRENT_USER\Software\Smooth Trackball Scrolling, addCtrl, %addCtrl%
+    RegWrite, REG_DWORD, HKEY_CURRENT_USER\Software\Smooth Trackball Scrolling, addShift, %addShift%
+    RegWrite, REG_DWORD, HKEY_CURRENT_USER\Software\Smooth Trackball Scrolling, addAlt, %addAlt%
     GOSUB UpdateDynamicHotKeys
 return
 
@@ -219,26 +264,62 @@ If (hHook != 0) {
 ExitApp
 
 ; =============================================================================
-; ACTUAL HOTKEY LOGIC
+; HOTKEY LOGIC FOR SCROLLING
 ; =============================================================================
 
-hotkeyOn:
+ToggleModifiersOn(force) {
+    If (force = 0 and emulateModifiers = 1) {
+        return
+    }
+    emulateModifiers := 1
+    If (addCtrl = 1) {
+        SendInput, {Ctrl down}
+    }
+    If (addShift = 1) {
+        SendInput, {Shift down}
+    }
+    If (addAlt = 1) {
+        SendInput, {Alt down}
+    }
+}
+
+ToggleModifiersOff(force) {
+    If (force = 0 and emulateModifiers = 0) {
+        return
+    }
+    emulateModifiers := 0
+    SmoothingWindowsReset()
+    If (addCtrl = 1) {
+        SendInput, {Ctrl up}
+    }
+    If (addShift = 1) {
+        SendInput, {Shift up}
+    }
+    If (addAlt = 1) {
+        SendInput, {Alt up}
+    }
+}
+
+HotkeyOn:
     If (active = 0) {
         active := 1
         accumulatorX := 0
         accumulatorY := 0
         snapState := 0
         snapDeviation := 0.0
+        lastMoveTick := 0
         SmoothingWindowsReset()
+        ToggleModifiersOn(1)
         MouseGetPos , cursorXMouseGetPos, cursorYMouseGetPos, windowUnderMouse
         SetTimer Timer, %refreshInterval%
     }
 return
 
-hotkeyOff:
+HotkeyOff:
     If (active = 1) {
         active := 0
         SetTimer Timer, Off
+        ToggleModifiersOff(1)
     }
 return
 
@@ -252,9 +333,15 @@ MouseProc(nCode, wParam, lParam) {
     
     If (active = 1)  {
 
-        ; Calculate mouse movement
+        ; Calculate mouse movements
         deltaX := messageX - cursorX
         deltaY := messageY - cursorY
+
+        ; If mouse moves stop modifier emulation
+        If (deltaX != 0 or deltaY != 0) {
+            lastMoveTick := A_TickCount
+            ToggleModifiersOff(0)
+        }
 
         ; Calculate scrolling magnitudes
         scrollX := deltaX * sensitivity
@@ -266,16 +353,21 @@ MouseProc(nCode, wParam, lParam) {
         accumulatorX := accumulatorX + scrollX
         accumulatorY := accumulatorY + scrollY
 
-        ; Block cursor movement by not calling next hook
-        return 1
+        If (emulateModifiers = 1 and deltaX = 0 and deltaY = 0) {
+            ; Allow modifier emulation by calling next hook
+            return DllCall("CallNextHookEx", "ptr", 0, "int", nCode, "uint", wParam, "ptr", lParam)
+        } Else {
+            ; Prevent cursor movement by not calling next hook
+            return 1
+        }
 
     } Else {
 
-        ; Store cursor position for later 
+        ; Store cursor position for later
         cursorX := messageX
         cursorY := messageY
 
-        ; Hotkey not pressed, so allow cursor movement by calling next hook
+        ; Allow cursor movement by calling next hook
         return DllCall("CallNextHookEx", "ptr", 0, "int", nCode, "uint", wParam, "ptr", lParam)
     
     }
@@ -291,6 +383,11 @@ Timer:
     ; Reset accumulators
     accumulatorX := 0
     accumulatorY := 0
+
+    ; Start modifier emulation if mouse hasn't moved for a while
+    If (smoothedX = 0 and smoothedY = 0 and (A_TickCount - lastMoveTick) > lastMoveThreshold) {
+        ToggleModifiersOn(0)
+    }
 
     ; Post wheel movements based on snap logic
 
@@ -407,6 +504,9 @@ SmoothingWindowsPush(x, y) {
 }
 
 SmoothingWindowsGetMeanX() {
+    If (smoothingWindowCurrentSize = 0) {
+        return 0
+    }
     mean := 0
     Loop %smoothingWindowCurrentSize% {
         mean := mean + smoothingWindowX[A_Index]
@@ -416,6 +516,9 @@ SmoothingWindowsGetMeanX() {
 }
 
 SmoothingWindowsGetMeanY() {
+    If (smoothingWindowCurrentSize = 0) {
+        return 0
+    }
     mean := 0
     Loop %smoothingWindowCurrentSize% {
         mean := mean + smoothingWindowY[A_Index]
