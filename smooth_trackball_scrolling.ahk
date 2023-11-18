@@ -257,6 +257,11 @@ InitializeHook:
     hHook := DllCall("SetWindowsHookEx", "int", 14, "ptr", RegisterCallback("MouseProc"), "ptr", 0, "uint", 0)
 return
 
+; Message pump to continually process mouse movement messages
+While, hHook and DllCall("GetMessage", "ptr", 0, "ptr", 0, "uint", 0, "uint", 0) {
+    continue
+}
+
 ; Clean up the mouse hook on exit
 OnExit, Unhook
 Return
@@ -272,20 +277,26 @@ ExitApp
 ; =============================================================================
 
 HotkeyOn:
-    accumulatorX := 0
-    accumulatorY := 0
-    accumulatorWheel := 0
-    snapState := 0
-    snapDeviation := 0.0
-    SmoothingWindowsReset()
-    MouseGetPos , cursorXMouseGetPos, cursorYMouseGetPos, windowUnderMouse
-    SetTimer TimerScroll, %refreshInterval%
-    SetTimer TimerWheel, 10
+    If (active = 0) {
+        active := 1
+        accumulatorX := 0
+        accumulatorY := 0
+        accumulatorWheel := 0
+        snapState := 0
+        snapDeviation := 0.0
+        SmoothingWindowsReset()
+        MouseGetPos , cursorXMouseGetPos, cursorYMouseGetPos, windowUnderMouse
+        SetTimer TimerScroll, %refreshInterval%
+        SetTimer TimerWheel, 10
+    }
 return
 
 HotkeyOff:
-    SetTimer TimerScroll, Off
-    SetTimer TimerWheel, Off
+    If (active = 1) {
+        active := 0
+        SetTimer TimerScroll, Off
+        SetTimer TimerWheel, Off
+    }
 return
 
 MouseProc(nCode, wParam, lParam) {
