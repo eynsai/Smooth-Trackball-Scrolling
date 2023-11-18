@@ -4,7 +4,6 @@
 
 #Persistent
 #SingleInstance Force
-#UseHook On
 
 SetTitleMatchMode RegEx
 CoordMode, Mouse, Screen
@@ -29,9 +28,6 @@ global addCtrl := ""
 global addShift := ""
 global addAlt := ""
 
-; Non-user settable parameters
-global lastMoveThreshold := 100
-
 ; Mouse hook pointer
 global hHook := 0
 
@@ -55,23 +51,24 @@ global smoothingWindowY := []
 global smoothingWindowNextIndex := 0
 global smoothingWindowCurrentSize := 0
 
-; State variables - emulating modifier functions
-global lastMoveTick := 0
-global emulateModifiers := 0
-
+; State variables - scroll wheel modifiers
+global wheelModifiers := 0
+global accumulatorWheel := 0
 
 ; =============================================================================
 ; GUI AND SETUP
 ; =============================================================================
 
 Init:
-    GOSUB InitializeGui
+    GOSUB InitializeSettings
     GOSUB UpdateDynamicHotKeys
     GOSUB InitializeHook
     SmoothingWindowsInit()
 return
 
-InitializeGui:
+InitializeSettings:
+
+    ; Read settings from registry
     Menu Tray, NoStandard
     Menu Tray, Add, Settings
     Menu Tray, Add, Run on startup, RunOnStartup
@@ -88,46 +85,38 @@ InitializeGui:
     RegRead, addCtrl, HKEY_CURRENT_USER\Software\Smooth Trackball Scrolling, addCtrl
     RegRead, addShift, HKEY_CURRENT_USER\Software\Smooth Trackball Scrolling, addShift
     RegRead, addAlt, HKEY_CURRENT_USER\Software\Smooth Trackball Scrolling, addAlt
-
     RegRead, runOnStartup, HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Run, Smooth Trackball Scrolling
 
     ; Default values
-    If (smoothTrackballScrollingShortcut = "") {
+    If (smoothTrackballScrollingShortcut = "")
         smoothTrackballScrollingShortcut := "F1"
-    }
-    If (sensitivity = "") {
+    If (sensitivity = "")
         sensitivity := 4
-    }
-    If (smoothingWindowMaxSize = "") {
+    If (smoothingWindowMaxSize = "")
         smoothingWindowMaxSize := 6
-    }
-    If (invertDirection = "") {
+    If (invertDirection = "")
         invertDirection := false
-    }
-    If (refreshInterval = "") {
+    If (refreshInterval = "")
         refreshInterval := 10
-    }
-    If (snapOn = "") {
+    If (snapOn = "")
         snapOn := 1
-    }
-    If (alwaysSnap = "") {
+    If (alwaysSnap = "")
         alwaysSnap := 1
-    }
-    If (snapThreshold = "") {
+    If (snapThreshold = "")
         snapThreshold := 10
-    }
-    If (snapRatio = "") {
+    If (snapRatio = "")
         snapRatio := 1.5
-    }
-    If (addCtrl = "") {
-        addCtrl := 0
-    }
-    If (addShift = "") {
+    If (addCtrl = "")
+        addCtrl := 1
+    If (addShift = "")
         addShift := 0
-    }
-    If (addAlt = "") {
+    If (addAlt = "")
         addAlt := 0
-    }
+
+    ; Initialize wheelModifiers
+    GOSUB UpdateModifiers
+
+    ; Run on startup stuff
     If (runOnStartup = "") {
         runOnStartup := false
     } Else {
@@ -151,7 +140,17 @@ return
 
 UpdateDynamicHotKeys:
     Hotkey, %smoothTrackballScrollingShortcut%, HotkeyOn
-    Hotkey, %smoothTrackballScrollingShortcut% Up, HotkeyOff
+    Hotkey, *%smoothTrackballScrollingShortcut% Up, HotkeyOff
+return
+
+UpdateModifiers:
+    wheelModifiers := 0
+    If addCtrl = 1
+        wheelModifiers += 0x08
+    If addShift = 1
+        wheelModifiers += 0x04
+    If addAlt = 1
+        wheelModifiers += 0x20
 return
 
 Settings:
@@ -193,7 +192,7 @@ Settings:
     
     Gui, Add, Text,,  ; spacer
 
-    Gui, Add, Text,, While mouse isn't moving:
+    Gui, Add, Text,, While scrolling with wheel:
 
     Gui, Add, Checkbox, vGuiAddCtrl, Emulate Ctrl
     GuiControl,,GuiAddCtrl, %addCtrl%
@@ -210,6 +209,8 @@ Settings:
 return
 
 ButtonSaveSettings:
+
+    ; Get settings from GUI
     GuiControlGet, smoothTrackballScrollingShortcut,, GuiSmoothTrackballScrollingShortcut
     GuiControlGet, sensitivity,, GuiSensitivity
     GuiControlGet, invertDirection,, GuiInvertDirection
@@ -223,6 +224,8 @@ ButtonSaveSettings:
     GuiControlGet, addShift,, GuiAddShift
     GuiControlGet, addAlt,, GuiAddAlt
     Gui Hide
+
+    ; Save settings to registry
     RegWrite, REG_SZ, HKEY_CURRENT_USER\Software\Smooth Trackball Scrolling, smoothTrackballScrollingShortcut, %smoothTrackballScrollingShortcut%
     RegWrite, REG_DWORD, HKEY_CURRENT_USER\Software\Smooth Trackball Scrolling, sensitivity, %sensitivity%
     RegWrite, REG_DWORD, HKEY_CURRENT_USER\Software\Smooth Trackball Scrolling, refreshInterval, %refreshInterval%
@@ -235,7 +238,13 @@ ButtonSaveSettings:
     RegWrite, REG_DWORD, HKEY_CURRENT_USER\Software\Smooth Trackball Scrolling, addCtrl, %addCtrl%
     RegWrite, REG_DWORD, HKEY_CURRENT_USER\Software\Smooth Trackball Scrolling, addShift, %addShift%
     RegWrite, REG_DWORD, HKEY_CURRENT_USER\Software\Smooth Trackball Scrolling, addAlt, %addAlt%
+
+    ; Update hotkeys
     GOSUB UpdateDynamicHotKeys
+
+    ; Update wheelModifiers
+    GOSUB UpdateModifiers
+    
 return
 
 ; =============================================================================
@@ -248,11 +257,6 @@ InitializeHook:
     hHook := DllCall("SetWindowsHookEx", "int", 14, "ptr", RegisterCallback("MouseProc"), "ptr", 0, "uint", 0)
 return
 
-; Message pump to continually process mouse movement messages
-While, hHook and DllCall("GetMessage", "ptr", 0, "ptr", 0, "uint", 0, "uint", 0) {
-    continue
-}
-
 ; Clean up the mouse hook on exit
 OnExit, Unhook
 Return
@@ -264,84 +268,77 @@ If (hHook != 0) {
 ExitApp
 
 ; =============================================================================
-; HOTKEY LOGIC FOR SCROLLING
+; HOTKEY LOGIC
 ; =============================================================================
 
-ToggleModifiersOn(force) {
-    If (force = 0 and emulateModifiers = 1) {
-        return
-    }
-    emulateModifiers := 1
-    If (addCtrl = 1) {
-        SendInput, {Ctrl down}
-    }
-    If (addShift = 1) {
-        SendInput, {Shift down}
-    }
-    If (addAlt = 1) {
-        SendInput, {Alt down}
-    }
-}
-
-ToggleModifiersOff(force) {
-    If (force = 0 and emulateModifiers = 0) {
-        return
-    }
-    emulateModifiers := 0
-    SmoothingWindowsReset()
-    If (addCtrl = 1) {
-        SendInput, {Ctrl up}
-    }
-    If (addShift = 1) {
-        SendInput, {Shift up}
-    }
-    If (addAlt = 1) {
-        SendInput, {Alt up}
-    }
-}
-
 HotkeyOn:
-    If (active = 0) {
-        active := 1
-        accumulatorX := 0
-        accumulatorY := 0
-        snapState := 0
-        snapDeviation := 0.0
-        lastMoveTick := 0
-        SmoothingWindowsReset()
-        ToggleModifiersOn(1)
-        MouseGetPos , cursorXMouseGetPos, cursorYMouseGetPos, windowUnderMouse
-        SetTimer Timer, %refreshInterval%
-    }
+    accumulatorX := 0
+    accumulatorY := 0
+    accumulatorWheel := 0
+    snapState := 0
+    snapDeviation := 0.0
+    SmoothingWindowsReset()
+    MouseGetPos , cursorXMouseGetPos, cursorYMouseGetPos, windowUnderMouse
+    SetTimer TimerScroll, %refreshInterval%
+    SetTimer TimerWheel, 10
 return
 
 HotkeyOff:
-    If (active = 1) {
-        active := 0
-        SetTimer Timer, Off
-        ToggleModifiersOff(1)
-    }
+    SetTimer TimerScroll, Off
+    SetTimer TimerWheel, Off
 return
 
 MouseProc(nCode, wParam, lParam) {
 
-    ; Extract the mouse movement delta from the MSLLHOOKSTRUCT pointed to by lParam
-    VarSetCapacity(pt, 8, 0)  ; POINT structure is 8 bytes in size
-    DllCall("RtlMoveMemory", "ptr", &pt, "ptr", lParam+0, "ptr", 8)
-    messageX := NumGet(pt, 0, "Int")
-    messageY := NumGet(pt, 4, "Int")
+    ; Extract part of MSLLHOOKSTRUCT from lParam
+    ; More specifically, extract pt (8 bytes) and mouseData (4 bytes)
+    VarSetCapacity(msll, 24, 0) ; MSLLHOOKSTRUCT is 24 bytes in size
+    DllCall("RtlMoveMemory", "ptr", &msll, "ptr", lParam, "ptr", 12)
+
+    ; Return early if user isn't pressing the hotkey
+    If (not GetKeyState(smoothTrackballScrollingShortcut, "P"))  {
+
+        ; Extract the mouse coordinates from the MSLLHOOKSTRUCT
+        messageX := NumGet(msll, 0, "Int")
+        messageY := NumGet(msll, 4, "Int")
+
+        ; Store cursor position for later
+        ; We could do this lazily when the hotkey gets pressed
+        ; But this is more responsive and fixes some weird edge case glitches
+        cursorX := messageX
+        cursorY := messageY
+
+        ; Allow cursor movement by calling next hook
+        return DllCall("CallNextHookEx", "ptr", 0, "int", nCode, "uint", wParam, "ptr", lParam)
+    }
+
+    ; Handle mouse wheel movements
+    If (wParam = 0x20A) {
+
+        ; Extract the wheel movement from the MSLLHOOKSTRUCT (the lower order word isn't used)
+        wheelDelta := NumGet(msll, 8, "UInt") >> 16
+
+        ; Discard lower order word and convert back to a signed integer
+        If (wheelDelta & 0x8000) {
+            wheelDelta := -(0x10000 - wheelDelta)
+        }
+
+        ; Add wheel delta to accumulator
+        accumulatorWheel += wheelDelta
+
+        ; Block scroll wheel movement
+        return 1
     
-    If (active = 1)  {
+    ; Handle mouse cursor movements
+    } Else {
+
+        ; Extract the mouse coordinates from the MSLLHOOKSTRUCT
+        messageX := NumGet(msll, 0, "Int")
+        messageY := NumGet(msll, 4, "Int")
 
         ; Calculate mouse movements
         deltaX := messageX - cursorX
         deltaY := messageY - cursorY
-
-        ; If mouse moves stop modifier emulation
-        If (deltaX != 0 or deltaY != 0) {
-            lastMoveTick := A_TickCount
-            ToggleModifiersOff(0)
-        }
 
         ; Calculate scrolling magnitudes
         scrollX := deltaX * sensitivity
@@ -350,30 +347,25 @@ MouseProc(nCode, wParam, lParam) {
             scrollX := scrollX * -1
             scrollY := scrollY * -1
         }
+
+        ; Add scrolling magnitudes to accumulators
         accumulatorX := accumulatorX + scrollX
         accumulatorY := accumulatorY + scrollY
 
-        If (emulateModifiers = 1 and deltaX = 0 and deltaY = 0) {
-            ; Allow modifier emulation by calling next hook
-            return DllCall("CallNextHookEx", "ptr", 0, "int", nCode, "uint", wParam, "ptr", lParam)
-        } Else {
-            ; Prevent cursor movement by not calling next hook
-            return 1
-        }
-
-    } Else {
-
-        ; Store cursor position for later
-        cursorX := messageX
-        cursorY := messageY
-
-        ; Allow cursor movement by calling next hook
-        return DllCall("CallNextHookEx", "ptr", 0, "int", nCode, "uint", wParam, "ptr", lParam)
-    
+        ; Block user's cursor movement
+        return 1
     }
 }
 
-Timer:
+TimerWheel:
+    If (accumulatorWheel = 0) {
+        return
+    }
+    PostWheelVertical(accumulatorWheel, wheelModifiers, cursorXMouseGetPos, cursorYMouseGetPos, windowUnderMouse)
+    accumulatorWheel := 0
+return
+
+TimerScroll:
 
     ; Apply smoothing window
     SmoothingWindowsPush(accumulatorX, accumulatorY)
@@ -383,11 +375,6 @@ Timer:
     ; Reset accumulators
     accumulatorX := 0
     accumulatorY := 0
-
-    ; Start modifier emulation if mouse hasn't moved for a while
-    If (smoothedX = 0 and smoothedY = 0 and (A_TickCount - lastMoveTick) > lastMoveThreshold) {
-        ToggleModifiersOn(0)
-    }
 
     ; Post wheel movements based on snap logic
 
