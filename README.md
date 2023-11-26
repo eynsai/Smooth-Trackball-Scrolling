@@ -12,6 +12,7 @@ However, this script seeks to differentiate itself by implementing continuous sc
 
 ### Basics: 
 - `Hotkey`: What key to use as the hotkey. See the [AHK docs](https://www.autohotkey.com/docs/v1/Hotkeys.htm) for more information on how to format this.
+- `Toggle on/off on hotkey`: If unchecked, you'll need to hold down the hotkey to scroll. If checked, you toggle between scrolling and normal mouse opration using the hotkey.
 - `Sensitivity`: Movement sensitivity.
 - `Invert Direction`: Inverts scrolling direction.
 
