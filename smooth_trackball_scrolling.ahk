@@ -19,6 +19,8 @@ global smoothingWindowMaxSize := ""
 global invertDirection := ""
 global refreshInterval := ""
 
+global toggle := ""
+
 global snapOn := ""
 global alwaysSnap := ""
 global snapThreshold := ""
@@ -52,7 +54,6 @@ global smoothingWindowNextIndex := 0
 global smoothingWindowCurrentSize := 0
 
 ; State variables - scroll wheel modifiers
-global wheelModifiers := 0
 global accumulatorWheel := 0
 
 ; =============================================================================
@@ -78,6 +79,7 @@ InitializeSettings:
     RegRead, smoothingWindowMaxSize, HKEY_CURRENT_USER\Software\Smooth Trackball Scrolling, smoothingWindowMaxSize
     RegRead, invertDirection, HKEY_CURRENT_USER\Software\Smooth Trackball Scrolling, invertDirection
     RegRead, refreshInterval, HKEY_CURRENT_USER\Software\Smooth Trackball Scrolling, refreshInterval
+    RegRead, toggle, HKEY_CURRENT_USER\Software\Smooth Trackball Scrolling, toggle
     RegRead, snapOn, HKEY_CURRENT_USER\Software\Smooth Trackball Scrolling, snapOn
     RegRead, alwaysSnap, HKEY_CURRENT_USER\Software\Smooth Trackball Scrolling, alwaysSnap
     RegRead, snapThreshold, HKEY_CURRENT_USER\Software\Smooth Trackball Scrolling, snapThreshold
@@ -98,6 +100,8 @@ InitializeSettings:
         invertDirection := false
     If (refreshInterval = "")
         refreshInterval := 10
+    If (toggle = "")
+        toggle := false
     If (snapOn = "")
         snapOn := 1
     If (alwaysSnap = "")
@@ -112,9 +116,6 @@ InitializeSettings:
         addShift := 0
     If (addAlt = "")
         addAlt := 0
-
-    ; Initialize wheelModifiers
-    GOSUB UpdateModifiers
 
     ; Run on startup stuff
     If (runOnStartup = "") {
@@ -143,23 +144,16 @@ UpdateDynamicHotKeys:
     Hotkey, *%smoothTrackballScrollingShortcut% Up, HotkeyOff
 return
 
-UpdateModifiers:
-    wheelModifiers := 0
-    If addCtrl = 1
-        wheelModifiers += 0x08
-    If addShift = 1
-        wheelModifiers += 0x04
-    If addAlt = 1
-        wheelModifiers += 0x20
-return
-
 Settings:
     Gui New, -Resize, Settings
-    Gui Show, W220 H500
+    Gui Show, W220 H520
 
     Gui, Add, Text,, Hotkey:
     GUI, Add, Edit, vGuiSmoothTrackballScrollingShortcut
     GuiControl,,GuiSmoothTrackballScrollingShortcut, %smoothTrackballScrollingShortcut%
+
+    Gui, Add, Checkbox, vGuiToggle, Toggle on/off on Hotkey
+    GuiControl,,GuiToggle, %toggle%
 
     Gui, Add, Text,, Refresh Interval:
     Gui, Add, Edit, vGuiRefreshIntervalEdit
@@ -212,6 +206,7 @@ ButtonSaveSettings:
 
     ; Get settings from GUI
     GuiControlGet, smoothTrackballScrollingShortcut,, GuiSmoothTrackballScrollingShortcut
+    GuiControlGet, toggle,, GuiToggle
     GuiControlGet, sensitivity,, GuiSensitivity
     GuiControlGet, invertDirection,, GuiInvertDirection
     GuiControlGet, refreshInterval,, GuiRefreshInterval
@@ -227,6 +222,7 @@ ButtonSaveSettings:
 
     ; Save settings to registry
     RegWrite, REG_SZ, HKEY_CURRENT_USER\Software\Smooth Trackball Scrolling, smoothTrackballScrollingShortcut, %smoothTrackballScrollingShortcut%
+    RegWrite, REG_DWORD, HKEY_CURRENT_USER\Software\Smooth Trackball Scrolling, toggle, %toggle%
     RegWrite, REG_DWORD, HKEY_CURRENT_USER\Software\Smooth Trackball Scrolling, sensitivity, %sensitivity%
     RegWrite, REG_DWORD, HKEY_CURRENT_USER\Software\Smooth Trackball Scrolling, refreshInterval, %refreshInterval%
     RegWrite, REG_DWORD, HKEY_CURRENT_USER\Software\Smooth Trackball Scrolling, invertDirection, %invertDirection%
@@ -241,9 +237,6 @@ ButtonSaveSettings:
 
     ; Update hotkeys
     GOSUB UpdateDynamicHotKeys
-
-    ; Update wheelModifiers
-    GOSUB UpdateModifiers
     
 return
 
@@ -277,7 +270,11 @@ ExitApp
 ; =============================================================================
 
 HotkeyOn:
-    If (active = 0) {
+    If (toggle = 1 and active = 1) {
+        active := 0
+        SetTimer TimerScroll, Off
+        SetTimer TimerWheel, Off
+    } Else If (active = 0) {
         active := 1
         accumulatorX := 0
         accumulatorY := 0
@@ -292,11 +289,11 @@ HotkeyOn:
 return
 
 HotkeyOff:
-    If (active = 1) {
+    If (toggle = 0 and active = 1) {
         active := 0
         SetTimer TimerScroll, Off
         SetTimer TimerWheel, Off
-    }
+    } 
 return
 
 MouseProc(nCode, wParam, lParam) {
@@ -307,7 +304,7 @@ MouseProc(nCode, wParam, lParam) {
     DllCall("RtlMoveMemory", "ptr", &msll, "ptr", lParam, "ptr", 12)
 
     ; Return early if user isn't pressing the hotkey
-    If (not GetKeyState(smoothTrackballScrollingShortcut, "P"))  {
+    If (not active)  {
 
         ; Extract the mouse coordinates from the MSLLHOOKSTRUCT
         messageX := NumGet(msll, 0, "Int")
@@ -372,6 +369,13 @@ TimerWheel:
     If (accumulatorWheel = 0) {
         return
     }
+    wheelModifiers := 0
+    If (addCtrl = 1 ^ GetKeyState("Ctrl", "P"))
+        wheelModifiers += 0x08
+    If (addShift = 1 ^ GetKeyState("Shift", "P")) 
+        wheelModifiers += 0x04
+    If (addAlt = 1 ^ GetKeyState("Alt", "P"))
+        wheelModifiers += 0x20
     PostWheelVertical(accumulatorWheel, wheelModifiers, cursorXMouseGetPos, cursorYMouseGetPos, windowUnderMouse)
     accumulatorWheel := 0
 return
