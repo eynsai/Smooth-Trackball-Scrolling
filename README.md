@@ -27,7 +27,7 @@ However, this script seeks to differentiate itself by implementing continuous sc
 - `Always Angle Snap`: If this is on, when you become un-snapped from one axis, you snap to the other axis. If this is off, when you un-snap from one axis, you stay un-snapped.
 
 ### Modifier Emulation
-- `Emulate Ctrl`, `Emulate Shift`, and `Emulate Alt`: If you check one or more of these boxes, the hotkey will add the respective key or key combination when you scroll. This is to allow you to use your mouse wheel to zoom while holding down the hotkey (check the box or boxes corresponding to your software's zoom modifier key), thus allowing you to control pan and zoom using a single hotkey.
+- `Emulate Ctrl`, `Emulate Shift`, and `Emulate Alt`: If you check one or more of these boxes, the hotkey will add the respective key or key combination when you scroll with your real physical scroll wheel (not your trackball). This is to allow you to use your mouse wheel to zoom while holding down the hotkey (check the box or boxes corresponding to your software's zoom modifier key), thus allowing you to control pan and zoom using a single hotkey.
 
 ## Known Issues
 
