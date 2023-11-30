@@ -12,6 +12,7 @@ However, this script seeks to differentiate itself by implementing continuous sc
 
 ### Basics: 
 - `Hotkey`: What key to use as the hotkey. See the [AHK docs](https://www.autohotkey.com/docs/v1/Hotkeys.htm) for more information on how to format this.
+  - If you end up accidently locking yourself out of your system, first use `CTRL+SHIFT+ESCAPE` to launch task manager and kill `smooth_trackball_scrolling.exe`. Then, run `smooth_trackball_scrolling_reset.exe`. This will reset all your settings back to default.
 - `Toggle on/off on hotkey`: If unchecked, you'll need to hold down the hotkey to scroll. If checked, you toggle between scrolling and normal mouse opration using the hotkey.
 - `Sensitivity`: Movement sensitivity.
 - `Invert Direction`: Inverts scrolling direction.
@@ -33,3 +34,4 @@ However, this script seeks to differentiate itself by implementing continuous sc
 
 - Unfortunately, I've found that some programs will not respond to the scroll inputs from my script, most notably Windows Explorer. I think a re-write of this script in a low-level language that can interface properly with the Windows input API will solve this, but I won't have time for this in the forseeable future.
 - Some software, most notably Chromium-based browsers, do not respond well to simultaneous scrolling inputs along both the X and Y axes. Using angle snap will fix this.
+- Using key combinations as the hotkey is currently not supported. I think I know how to fix this; I just need to rewrite the relevant part of the script, which I might not have time to do for the time being.
