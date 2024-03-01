@@ -12,20 +12,25 @@ CoordMode, Mouse, Screen
 ; GLOBAL VARS
 ; =============================================================================
 
-; Parameters
+; Parameters - basic functionality
 global smoothTrackballScrollingShortcut := ""
+global smoothTrackballScrollingShortcut2 := ""
 global sensitivity := ""
 global smoothingWindowMaxSize := ""
 global invertDirection := ""
 global refreshInterval := ""
 
-global toggle := ""
+; Parameters - activating/deactivating scrolling
+global mode := ""
+global holdDuration := ""
 
+; Parameters - angle snapping
 global snapOn := ""
 global alwaysSnap := ""
 global snapThreshold := ""
 global snapRatio := ""
 
+; Parameters - scroll wheel modifiers
 global addCtrl := ""
 global addShift := ""
 global addAlt := ""
@@ -33,8 +38,22 @@ global addAlt := ""
 ; Mouse hook pointer
 global hHook := 0
 
-; State variables - basic functionality
+; State variables - activating/deactivating scrolling
 global active := 0
+global fsmState := 0  
+; fsmState is only used for 2 key MO modes
+; 0: base state
+; 1: hotkey 1 down (unsure if tap, hold, or smooth scrolling)
+; 2: hotkey 2 down (unsure if tap, hold, or smooth scrolling)
+; 3: symmetric mode only, hotkey 1 held
+; 4: hotkey 2 held
+; 5: smooth scrolling
+; 6: hotkey 1 down after smooth scrolling was active
+; 7: hotkey 2 down after smooth scrolling was active
+; 8: asymmetric mode only, both hotkeys held
+; 9: asymmetric mode only, hotkey 2 held 
+
+; State variables - basic functionality
 global windowUnderMouse := 0
 global cursorX := 0
 global cursorY := 0
@@ -56,14 +75,18 @@ global smoothingWindowCurrentSize := 0
 ; State variables - scroll wheel modifiers
 global accumulatorWheel := 0
 
+; State variables - ugly quick fix to prevent modifiers from interfering
+; global sendModifiers := 0
+
 ; =============================================================================
 ; GUI AND SETUP
 ; =============================================================================
 
 Init:
     GOSUB InitializeSettings
-    GOSUB UpdateDynamicHotKeys
-    GOSUB InitializeHook
+    InitializeHook()
+    RemoveDynamicHotkeys()
+    UpdateDynamicHotKeys()
     SmoothingWindowsInit()
 return
 
@@ -75,11 +98,13 @@ InitializeSettings:
     Menu Tray, Add, Run on startup, RunOnStartup
     Menu Tray, Standard
     RegRead, smoothTrackballScrollingShortcut, HKEY_CURRENT_USER\Software\Smooth Trackball Scrolling, smoothTrackballScrollingShortcut
+    RegRead, smoothTrackballScrollingShortcut2, HKEY_CURRENT_USER\Software\Smooth Trackball Scrolling, smoothTrackballScrollingShortcut2
     RegRead, sensitivity, HKEY_CURRENT_USER\Software\Smooth Trackball Scrolling, sensitivity
     RegRead, smoothingWindowMaxSize, HKEY_CURRENT_USER\Software\Smooth Trackball Scrolling, smoothingWindowMaxSize
     RegRead, invertDirection, HKEY_CURRENT_USER\Software\Smooth Trackball Scrolling, invertDirection
     RegRead, refreshInterval, HKEY_CURRENT_USER\Software\Smooth Trackball Scrolling, refreshInterval
-    RegRead, toggle, HKEY_CURRENT_USER\Software\Smooth Trackball Scrolling, toggle
+    RegRead, mode, HKEY_CURRENT_USER\Software\Smooth Trackball Scrolling, mode
+    RegRead, holdDuration, HKEY_CURRENT_USER\Software\Smooth Trackball Scrolling, holdDuration
     RegRead, snapOn, HKEY_CURRENT_USER\Software\Smooth Trackball Scrolling, snapOn
     RegRead, alwaysSnap, HKEY_CURRENT_USER\Software\Smooth Trackball Scrolling, alwaysSnap
     RegRead, snapThreshold, HKEY_CURRENT_USER\Software\Smooth Trackball Scrolling, snapThreshold
@@ -92,6 +117,8 @@ InitializeSettings:
     ; Default values
     If (smoothTrackballScrollingShortcut = "")
         smoothTrackballScrollingShortcut := "F1"
+    If (smoothTrackballScrollingShortcut2 = "")
+        smoothTrackballScrollingShortcut2 := ""
     If (sensitivity = "")
         sensitivity := 4
     If (smoothingWindowMaxSize = "")
@@ -100,8 +127,10 @@ InitializeSettings:
         invertDirection := false
     If (refreshInterval = "")
         refreshInterval := 10
-    If (toggle = "")
-        toggle := false
+    If (mode = "")
+        mode := "MO (1 key)"
+    If (holdDuration = "")
+        holdDuration := 500
     If (snapOn = "")
         snapOn := 1
     If (alwaysSnap = "")
@@ -125,6 +154,7 @@ InitializeSettings:
         Menu Tray, Check, Run on startup
         RegWrite, REG_SZ, HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Run, Smooth Trackball Scrolling, %A_ScriptFullPath%
     }
+
 return
 
 RunOnStartup:
@@ -139,21 +169,72 @@ RunOnStartup:
     }
 return
 
-UpdateDynamicHotKeys:
+RemoveDynamicHotkeys() {
+    Try {
+        Hotkey, %smoothTrackballScrollingShortcut%, Off
+    }
+    Try {
+        Hotkey, *%smoothTrackballScrollingShortcut% Up, Off
+    }
+    Try {
+        Hotkey, %smoothTrackballScrollingShortcut2%, Off
+    }
+    Try {
+        Hotkey, *%smoothTrackballScrollingShortcut2% Up, Off
+    }
+    return
+}
+
+UpdateDynamicHotKeys() {
     Hotkey, %smoothTrackballScrollingShortcut%, HotkeyOn
     Hotkey, *%smoothTrackballScrollingShortcut% Up, HotkeyOff
-return
+    Hotkey, %smoothTrackballScrollingShortcut%, On
+    Hotkey, *%smoothTrackballScrollingShortcut% Up, On
+    If (mode = "MO (2 key sym.)" or mode = "MO (2 key asym.)" or mode = "TG (2 key asym.)") {
+        Hotkey, %smoothTrackballScrollingShortcut2%, Hotkey2On
+        Hotkey, *%smoothTrackballScrollingShortcut2% Up, Hotkey2Off
+        Hotkey, %smoothTrackballScrollingShortcut2%, On
+        Hotkey, *%smoothTrackballScrollingShortcut2% Up, On
+    }
+    return
+}
 
 Settings:
-    Gui New, -Resize, Settings
-    Gui Show, W220 H520
 
-    Gui, Add, Text,, Hotkey:
+    RemoveDynamicHotkeys()
+
+    Gui New, -Resize, Settings
+    Gui Show, W300 H690
+
+    Gui, Add, Text,, Hotkey 1:
     GUI, Add, Edit, vGuiSmoothTrackballScrollingShortcut
     GuiControl,,GuiSmoothTrackballScrollingShortcut, %smoothTrackballScrollingShortcut%
 
-    Gui, Add, Checkbox, vGuiToggle, Toggle on/off on Hotkey
-    GuiControl,,GuiToggle, %toggle%
+    Gui, Add, Text,, Hotkey 2:
+    GUI, Add, Edit, vGuiSmoothTrackballScrollingShortcut2
+    GuiControl,,GuiSmoothTrackballScrollingShortcut2, %smoothTrackballScrollingShortcut2%
+
+    If (mode = "MO (1 key)") {
+        modeNum := 1
+    } Else If (mode = "TG (1 key)") {
+        modeNum := 2
+    } Else If (mode = "MO (2 key sym.)") {
+        modeNum := 3
+    } Else If (mode = "MO (2 key asym.)") {
+        modeNum := 4
+    } Else If (mode = "TG (2 key asym.)") {
+        modeNum := 5
+    } Else {
+        modeNum := 0
+    }
+    Gui, Add, Text,, Hotkey Mode:
+    Gui, Add, DropDownList, vGuiMode Choose%modeNum%, MO (1 key)|TG (1 key)|MO (2 key sym.)|MO (2 key asym.)|TG (2 key asym.)
+
+    Gui, Add, Text,, Hold Duration:
+    Gui, Add, Edit, vGuiHoldDurationEdit
+    Gui, Add, UpDown, vGuiHoldDuration Range10-999999, %holdDuration%
+
+    Gui, Add, Text,,  ; spacer
 
     Gui, Add, Text,, Refresh Interval:
     Gui, Add, Edit, vGuiRefreshIntervalEdit
@@ -169,6 +250,8 @@ Settings:
 
     Gui, Add, Checkbox, vGuiInvertDirection, Invert Direction
     GuiControl,,GuiInvertDirection, %invertDirection%
+
+    Gui, Add, Text,,  ; spacer
 
     Gui, Add, Text,, Angle Snapping Threshold:
     Gui, Add, Edit, vGuiSnapThreshold
@@ -200,13 +283,16 @@ Settings:
     Gui, Add, Text,,  ; spacer
 
     Gui, Add, Button, Default, Save Settings
+
 return
 
 ButtonSaveSettings:
 
     ; Get settings from GUI
     GuiControlGet, smoothTrackballScrollingShortcut,, GuiSmoothTrackballScrollingShortcut
-    GuiControlGet, toggle,, GuiToggle
+    GuiControlGet, smoothTrackballScrollingShortcut2,, GuiSmoothTrackballScrollingShortcut2
+    GuiControlGet, mode,, GuiMode
+    GuiControlGet, holdDuration,, GuiHoldDuration
     GuiControlGet, sensitivity,, GuiSensitivity
     GuiControlGet, invertDirection,, GuiInvertDirection
     GuiControlGet, refreshInterval,, GuiRefreshInterval
@@ -222,7 +308,9 @@ ButtonSaveSettings:
 
     ; Save settings to registry
     RegWrite, REG_SZ, HKEY_CURRENT_USER\Software\Smooth Trackball Scrolling, smoothTrackballScrollingShortcut, %smoothTrackballScrollingShortcut%
-    RegWrite, REG_DWORD, HKEY_CURRENT_USER\Software\Smooth Trackball Scrolling, toggle, %toggle%
+    RegWrite, REG_SZ, HKEY_CURRENT_USER\Software\Smooth Trackball Scrolling, smoothTrackballScrollingShortcut2, %smoothTrackballScrollingShortcut2%
+    RegWrite, REG_SZ, HKEY_CURRENT_USER\Software\Smooth Trackball Scrolling, mode, %mode%
+    RegWrite, REG_DWORD, HKEY_CURRENT_USER\Software\Smooth Trackball Scrolling, holdDuration, %holdDuration%
     RegWrite, REG_DWORD, HKEY_CURRENT_USER\Software\Smooth Trackball Scrolling, sensitivity, %sensitivity%
     RegWrite, REG_DWORD, HKEY_CURRENT_USER\Software\Smooth Trackball Scrolling, refreshInterval, %refreshInterval%
     RegWrite, REG_DWORD, HKEY_CURRENT_USER\Software\Smooth Trackball Scrolling, invertDirection, %invertDirection%
@@ -236,7 +324,7 @@ ButtonSaveSettings:
     RegWrite, REG_DWORD, HKEY_CURRENT_USER\Software\Smooth Trackball Scrolling, addAlt, %addAlt%
 
     ; Update hotkeys
-    GOSUB UpdateDynamicHotKeys
+    UpdateDynamicHotKeys()
     
 return
 
@@ -245,10 +333,11 @@ return
 ; =============================================================================
 
 ; Create a mouse movement hook
-InitializeHook:
+InitializeHook() {
     ; WH_MOUSE_LL is 14
     hHook := DllCall("SetWindowsHookEx", "int", 14, "ptr", RegisterCallback("MouseProc"), "ptr", 0, "uint", 0)
-return
+    return
+}
 
 ; Message pump to continually process mouse movement messages
 While, hHook and DllCall("GetMessage", "ptr", 0, "ptr", 0, "uint", 0, "uint", 0) {
@@ -270,30 +359,181 @@ ExitApp
 ; =============================================================================
 
 HotkeyOn:
-    If (toggle = 1 and active = 1) {
-        active := 0
-        SetTimer TimerScroll, Off
-        SetTimer TimerWheel, Off
-    } Else If (active = 0) {
-        active := 1
-        accumulatorX := 0
-        accumulatorY := 0
-        accumulatorWheel := 0
-        snapState := 0
-        snapDeviation := 0.0
-        SmoothingWindowsReset()
-        MouseGetPos , cursorXMouseGetPos, cursorYMouseGetPos, windowUnderMouse
-        SetTimer TimerScroll, %refreshInterval%
-        SetTimer TimerWheel, 10
+    If (mode = "MO (1 key)") {
+        If (active = 0) {
+            ScrollingActivate()
+        }
+    } Else If (mode = "TG (1 key)") {
+        If (active = 0) {
+            ScrollingActivate()
+        } Else {
+            ScrollingDeactivate()
+        }
+    } Else If (mode = "MO (2 key sym.)") {
+        If (fsmState = 0) {
+            fsmState := 1
+            SetTimer, TimerHold, -%holdDuration%
+        } Else If (fsmState = 2) {
+            fsmState := 5
+            if (active = 0) {
+                ScrollingActivate()
+            }
+        }
+    } Else If (mode = "MO (2 key asym.)") {
+        If (fsmState = 0) {
+            fsmState := 1
+            Send, {%smoothTrackballScrollingShortcut% down}
+        } Else If (fsmState = 2) {
+            fsmState := 5
+            if (active = 0) {
+                ScrollingActivate()
+            }
+        } Else If (fsmState = 9) { 
+            fsmState := 8
+            Send, {%smoothTrackballScrollingShortcut% down}
+        }
+    } Else If (mode = "TG (2 key asym.)") {
+        If (active = 0) {
+            ScrollingActivate()
+        }
     }
 return
 
 HotkeyOff:
-    If (toggle = 0 and active = 1) {
-        active := 0
-        SetTimer TimerScroll, Off
-        SetTimer TimerWheel, Off
-    } 
+    If (mode = "MO (1 key)") {
+        If (active = 1) {
+            ScrollingDeactivate()
+        }
+    } Else If (mode = "MO (2 key sym.)") {
+        If (fsmState = 1) {
+            fsmState := 0
+            Send {%smoothTrackballScrollingShortcut%}
+        } Else If (fsmState = 3) {
+            fsmState := 0
+            Send {%smoothTrackballScrollingShortcut% up}
+        } Else If (fsmState = 5) {
+            fsmState := 7
+            If (active = 1) {
+                ScrollingDeactivate()
+            }
+        } Else If (fsmState = 6) {
+            fsmState := 0
+        }
+    } Else If (mode = "MO (2 key asym.)") {
+        If (fsmState = 1) {
+            fsmState := 0
+            Send {%smoothTrackballScrollingShortcut% up}
+        } Else If (fsmState = 5) {
+            fsmState := 7
+            If (active = 1) {
+                ScrollingDeactivate()
+            }
+        } Else If (fsmState = 6) {
+            fsmState := 0
+        } Else If (fsmState = 8) {
+            fsmState := 9
+            Send {%smoothTrackballScrollingShortcut% up}
+        }
+    }
+return
+
+Hotkey2On:
+    If (mode = "MO (2 key sym.)") {
+        If (fsmState = 0) {
+            fsmState := 2
+            SetTimer, TimerHold, -%holdDuration%
+        } Else If (fsmState = 1) {
+            fsmState := 5
+            if (active = 0) {
+                ScrollingActivate()
+            }
+        }
+    } Else If (mode = "MO (2 key asym.)") {
+        If (fsmState = 0) {
+            fsmState := 2
+            SetTimer, TimerHold, -%holdDuration%
+        } Else If (fsmState = 1) {
+            fsmState := 8
+            Send {%smoothTrackballScrollingShortcut2% down}
+        }
+    } Else If (mode = "TG (2 key asym.)") {
+        If (active = 1) {
+            ScrollingDeactivate()
+        }
+    }
+return
+
+Hotkey2Off:
+    If (mode = "MO (2 key sym.)") {
+        If (fsmState = 2) {
+            fsmState := 0
+            Send {%smoothTrackballScrollingShortcut2%}
+        } Else If (fsmState = 4) {
+            fsmState := 0
+            Send {%smoothTrackballScrollingShortcut2% up}
+        } Else If (fsmState = 5) {
+            fsmState := 6
+            If (active = 1) {
+                ScrollingDeactivate()
+            }
+        } Else If (fsmState = 7) {
+            fsmState := 0
+        }
+    } Else If (mode = "MO (2 key asym.)") {
+        If (fsmState = 2) {
+            fsmState := 0
+            Send {%smoothTrackballScrollingShortcut2%}
+        } Else If (fsmState = 4) {
+            fsmState := 0
+            Send {%smoothTrackballScrollingShortcut2% up}
+        } Else If (fsmState = 5) {
+            fsmState := 6
+            If (active = 1) {
+                ScrollingDeactivate()
+            }
+        } Else If (fsmState = 7) {
+            fsmState := 0
+        } Else If (fsmState = 8) {
+            fsmState := 1
+            Send {%smoothTrackballScrollingShortcut2% up}
+        } Else If (fsmState = 9) { 
+            fsmState := 0
+            Send, {%smoothTrackballScrollingShortcut2% up}
+        }
+    }
+return
+
+ScrollingActivate() {
+    active := 1
+    accumulatorX := 0
+    accumulatorY := 0
+    accumulatorWheel := 0
+    snapState := 0
+    snapDeviation := 0.0
+    SmoothingWindowsReset()
+    MouseGetPos , cursorXMouseGetPos, cursorYMouseGetPos, windowUnderMouse
+    SetTimer TimerScroll, %refreshInterval%
+    SetTimer TimerWheel, %refreshInterval%
+    ; sendModifiers := 1
+}
+
+ScrollingDeactivate() {
+    active := 0
+    SetTimer TimerScroll, Off
+    SetTimer TimerWheel, Off
+    ; sendModifiers := 1
+}
+
+TimerHold:
+    ; This subroutine will run once after holdDuration
+    ; If the user is still holding only a single hotkey at that point, assume the user wants to send a hold for that key
+    If (fsmState = 1) {
+        fsmState := 3
+        Send {%smoothTrackballScrollingShortcut% down}
+    } Else If (fsmState = 2) {
+        fsmState := 4
+        Send {%smoothTrackballScrollingShortcut2% down}
+    }
 return
 
 MouseProc(nCode, wParam, lParam) {
@@ -381,6 +621,14 @@ TimerWheel:
 return
 
 TimerScroll:
+
+    ; Ugly quick fix to prevent modifiers from interfering
+    ; If (sendModifiers = 1) {
+    ;     SendInput, {Ctrl UP}
+    ;     SendInput, {Shift UP}
+    ;     SendInput, {Alt UP}
+    ;     sendModifiers := 0
+    ; }
 
     ; Apply smoothing window
     SmoothingWindowsPush(accumulatorX, accumulatorY)
@@ -500,7 +748,8 @@ SmoothingWindowsPush(x, y) {
         smoothingWindowNextIndex := 1
     } Else {
         smoothingWindowNextIndex := smoothingWindowNextIndex + 1
-    } If (smoothingWindowCurrentSize < smoothingWindowMaxSize) {
+    } 
+    If (smoothingWindowCurrentSize < smoothingWindowMaxSize) {
         smoothingWindowCurrentSize := smoothingWindowCurrentSize + 1
     }
 }
