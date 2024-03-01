@@ -17,7 +17,6 @@ However, this script seeks to differentiate itself by implementing continuous sc
   - If you end up accidently locking yourself out of your system, first use `CTRL+SHIFT+ESCAPE` to launch task manager and kill `smooth_trackball_scrolling.exe`. Then, run `smooth_trackball_scrolling_reset.exe`. This will reset all your settings back to default.
 - `Hotkey 2`: A second hotkey, if you're using a 2 key mode. See below for more details.
   - Formatted the same way as `Hotkey 1`.
-  - Only used for two-key modes. See below for more details.
 - `Mode`
   - `MO (1 key)`: Smooth scrolling is active when `Hotkey 1` is held, and inactive when `Hotkey 1` isn't held. `Hotkey 2` doesn't do anything.
   - `TG (1 key)`: Smooth scrolling is toggled when `Hotkey 1` is pressed down. `Hotkey 2` doesn't do anything.
