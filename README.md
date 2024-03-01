@@ -11,15 +11,39 @@ However, this script seeks to differentiate itself by implementing continuous sc
 ## Settings
 
 ### Basics: 
-- `Hotkey`: What key to use as the hotkey. See the [AHK docs](https://www.autohotkey.com/docs/v1/Hotkeys.htm) for more information on how to format this.
+- `Hotkey 1`: What key to use as the hotkey.
+  - See the [AHK docs](https://www.autohotkey.com/docs/v1/Hotkeys.htm) for more information on how to format this.
+  - Only single keys (keyboard or mouse) can be used - no combinations or modifiers.
   - If you end up accidently locking yourself out of your system, first use `CTRL+SHIFT+ESCAPE` to launch task manager and kill `smooth_trackball_scrolling.exe`. Then, run `smooth_trackball_scrolling_reset.exe`. This will reset all your settings back to default.
-- `Toggle on/off on hotkey`: If unchecked, you'll need to hold down the hotkey to scroll. If checked, you toggle between scrolling and normal mouse opration using the hotkey.
-- `Sensitivity`: Movement sensitivity.
-- `Invert Direction`: Inverts scrolling direction.
+- `Hotkey 2`
+  - Formatted the same way as `Hotkey 1`.
+  - Only used for two-key modes. See below for more details.
+- `Mode`
+  - `MO (1 key)`: Smooth scrolling is active when `Hotkey 1` is held, and inactive when `Hotkey 1` isn't held. `Hotkey 2` doesn't do anything.
+  - `TG (1 key)`: Smooth scrolling is toggled when `Hotkey 1` is pressed down. `Hotkey 2` doesn't do anything.
+  - `MO (2 key sym.)`: Smooth scrolling is active when `Hotkey 1` and `Hotkey 2` are both held.
+    - This mode is intended for use with two keyboard keys.
+    - You can start holding the two hotkeys in either order.
+    - The original functionality of both hotkeys can still be used by tapping/holding the key individually.
+      - If you tap a hotkey individually, the tap action will be sent upon key release.
+      - If you hold a hotkey individually, the hold will start after a hold delay (configurable via `Hold Duration`).
+  - `MO (2 key asym.)`: Smooth scrolling is active when `Hotkey 1` and `Hotkey 2` are both held.
+    - This mode is intended for use with the two mouse buttons (`LButton` and `RButton`).
+    - You must start holding `Hotkey 2` before `Hotkey 1`.
+    - The original functionality of both hotkeys can still be used by tapping/holding the key individually.
+      - If you tap `Hotkey 1` individually, the tap action will be sent immediately.
+      - If you hold `Hotkey 1` individually, the hold action will start immediately.
+      - If you tap `Hotkey 2` individually, the tap action will be sent upon key release.
+      - If you hold `Hotkey 2` individually, the hold action will start after a hold delay (configurable via `Hold Duration`).
+  - `TG (2 key asym.)`: `Hotkey1` turns smooth scrolling on, while `Hotkey2` turns smooth scrolling off.
+    - This mode is intended to make it easier to integrate this script with QMK keyboard firmware and stuff.
+- `Hold Duration`: Only applicable when using 2 key MO modes. The duration of the delay before a hold action starts. 
 
-### Smoothness:
+### Responsiveness, Smoothing, and Sensitivity:
 - `Refresh Interval`: How often the script sends mouse wheel updates. The minimum and default value is 10 (ms). I recommend trying to use this value, but if you experience some apps behaving weirdly or inconsistently in response to scrolling, try bumping it up to something like 16 or 20. Basically set this to as low as it can go without causing problems.
 - `Smoothing Window Size`: How much smoothing to apply. Higher values correspond to more smoothing and "momentum". Lower settings are snappier and more responsive. I recommend a value around 3 to 10, depending on your personal preference. If you increase your `Refresh Interval`, you might want to decrease your `Smoothing Window Size`, as the total amount of smoothing actually scales with the product of these two parameters.
+- `Sensitivity`: Movement sensitivity.
+- `Invert Direction`: Inverts scrolling direction.
 
 ### Angle Snapping
 - `Angle Snapping Threshold`: Controls how hard it is to break away from being snapped to an axis. This parameter sets how much you have to move perpendiular to the axis to become un-snapped. A higher value will make it harder to un-snap from an axis. I recommend a value around 10, but this depends on how you want your snapping to work.
