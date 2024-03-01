@@ -15,7 +15,7 @@ However, this script seeks to differentiate itself by implementing continuous sc
   - See the [AHK docs](https://www.autohotkey.com/docs/v1/Hotkeys.htm) for more information on how to format this.
   - Only single keys (keyboard or mouse) can be used - no combinations or modifiers.
   - If you end up accidently locking yourself out of your system, first use `CTRL+SHIFT+ESCAPE` to launch task manager and kill `smooth_trackball_scrolling.exe`. Then, run `smooth_trackball_scrolling_reset.exe`. This will reset all your settings back to default.
-- `Hotkey 2`
+- `Hotkey 2`: A second hotkey, if you're using a 2 key mode. See below for more details.
   - Formatted the same way as `Hotkey 1`.
   - Only used for two-key modes. See below for more details.
 - `Mode`
