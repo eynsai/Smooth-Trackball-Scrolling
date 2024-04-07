@@ -19,7 +19,7 @@ However, this script seeks to differentiate itself by implementing continuous sc
 - `Hotkey 2`: A second hotkey, if you're using a 2 key mode. See below for more details.
   - Formatted the same way as `Hotkey 1`.
     
-## Setting Hotkey Mode
+## Setting Hotkey Mode:
 
 - `Mode`: Provides various options depending on how you want things to work.
   - `MO (1 key)`: Smooth scrolling is active when `Hotkey 1` is held, and inactive when `Hotkey 1` isn't held. `Hotkey 2` doesn't do anything.
