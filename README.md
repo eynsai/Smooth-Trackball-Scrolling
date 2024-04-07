@@ -22,17 +22,13 @@ However, this script seeks to differentiate itself by implementing continuous sc
 ## Setting Hotkey Mode
 
 - `Mode`: Provides various options depending on how you want things to work.
-  
   - `MO (1 key)`: Smooth scrolling is active when `Hotkey 1` is held, and inactive when `Hotkey 1` isn't held. `Hotkey 2` doesn't do anything.
-    
   - `TG (1 key)`: Smooth scrolling is toggled when `Hotkey 1` is pressed down. `Hotkey 2` doesn't do anything.
-    
   - `MO (2 key sym.)`: Smooth scrolling is active when `Hotkey 1` and `Hotkey 2` are both held.
     - You can start holding the two hotkeys in either order.
     - The original functionality of both hotkeys can still be used by tapping/holding the key individually.
       - If you tap a hotkey individually, the tap action will be sent upon key release.
       - If you hold a hotkey individually, the hold will start after a hold delay (configurable via `Hold Duration`).
-        
   - `MO (2 key asym.)`: Smooth scrolling is active when `Hotkey 1` and `Hotkey 2` are both held.
     - This mode is primarily intended for use with the two mouse buttons (`LButton` and `RButton`), though of course you can use other hotkeys as well.
     - This mode is identical to `MO (2 key sym.)`, but with the following tradeoff:
@@ -46,7 +42,6 @@ However, this script seeks to differentiate itself by implementing continuous sc
       - If you hold `Hotkey 2` individually, the hold action will start after a hold delay (configurable via `Hold Duration`).
   - `TG (2 key asym.)`: `Hotkey1` turns smooth scrolling on, while `Hotkey2` turns smooth scrolling off.
     - This mode is intended to make it easier to integrate this script with QMK keyboard firmware and stuff.
-      
 - `Hold Duration`: Only applicable when using 2 key MO modes. The duration of the delay before a hold action starts. 
 
 ## Responsiveness, Smoothing, and Sensitivity:
