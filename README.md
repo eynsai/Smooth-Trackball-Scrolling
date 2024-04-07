@@ -31,15 +31,15 @@ However, this script seeks to differentiate itself by implementing continuous sc
       - If you hold a hotkey individually, the hold will start after a hold delay (configurable via `Hold Duration`).
   - `MO (2 key asym.)`: Smooth scrolling is active when `Hotkey 1` and `Hotkey 2` are both held.
     - This mode is primarily intended for use with the two mouse buttons (`LButton` and `RButton`), though of course you can use other hotkeys as well.
-    - This mode is identical to `MO (2 key sym.)`, but with the following tradeoff:
-      - PRO: `Hotkey 1` is much more responsive, since tap and hold actions start immediately when you first press the key/button. If you're using the mouse buttons, this means that left-clicks are much more responsive.
-      - CON: Instead of being able to press them in either order, you now must activate `Hotkey 2` before `Hotkey 1`. If you're using the mouse buttons, this means you'll have to "roll" from right-click to left-click, instead of just pressing them both at the same time.
     - You must start holding `Hotkey 2` before `Hotkey 1`.
     - The original functionality of both hotkeys can still be used by tapping/holding the key individually.
       - If you tap `Hotkey 1` individually, the tap action will be sent immediately.
       - If you hold `Hotkey 1` individually, the hold action will start immediately.
       - If you tap `Hotkey 2` individually, the tap action will be sent upon key release.
       - If you hold `Hotkey 2` individually, the hold action will start after a hold delay (configurable via `Hold Duration`).
+    - This mode is identical to `MO (2 key sym.)`, but with the following tradeoff:
+      - PRO: `Hotkey 1` is much more responsive, since tap and hold actions start immediately when you first press the key/button. If you're using the mouse buttons, this means that left-clicks are much more responsive.
+      - CON: Instead of being able to press them in either order, you now must activate `Hotkey 2` before `Hotkey 1`. If you're using the mouse buttons, this means you'll have to "roll" from right-click to left-click, instead of just pressing them both at the same time.
   - `TG (2 key asym.)`: `Hotkey1` turns smooth scrolling on, while `Hotkey2` turns smooth scrolling off.
     - This mode is intended to make it easier to integrate this script with QMK keyboard firmware and stuff.
 - `Hold Duration`: Only applicable when using 2 key MO modes. The duration of the delay before a hold action starts. 
