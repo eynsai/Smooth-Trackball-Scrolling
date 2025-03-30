@@ -42,7 +42,8 @@ However, this script seeks to differentiate itself by implementing continuous sc
       - CON: Instead of being able to press them in either order, you now must activate `Hotkey 2` before `Hotkey 1`. If you're using the mouse buttons, this means you'll have to "roll" from right-click to left-click, instead of just pressing them both at the same time.
   - `TG (2 key asym.)`: `Hotkey1` turns smooth scrolling on, while `Hotkey2` turns smooth scrolling off.
     - This mode is intended to make it easier to integrate this script with QMK keyboard firmware and stuff.
-- `Hold Duration`: Only applicable when using 2 key MO modes. The duration of the delay before a hold action starts. 
+  - `LT (1 key)`: Smooth scrolling is activated when `Hotkey 1` is held, and the regular key function is executed when `Hotkey 1` is tapped. `Hotkey 2` does not perform any action. Recommended `Hold Duration` = 100
+- `Hold Duration`: Only applicable when using 2 key MO modes and LT mode. The duration of the delay before a hold action starts. 
 
 ## Responsiveness, Smoothing, and Sensitivity:
 
