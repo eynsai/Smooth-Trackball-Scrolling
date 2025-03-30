@@ -51,7 +51,12 @@ global fsmState := 0
 ; 6: hotkey 1 down after smooth scrolling was active
 ; 7: hotkey 2 down after smooth scrolling was active
 ; 8: asymmetric mode only, both hotkeys held
-; 9: asymmetric mode only, hotkey 2 held 
+; 9: asymmetric mode only, hotkey 2 held
+global tapDetected := 0
+; tapDetected is only used for 1 key LT mode
+; 0: base state
+; 1: hotkey 1 down (unsure if tap or smooth scrolling)
+; 2: smooth scrolling
 
 ; State variables - basic functionality
 global windowUnderMouse := 0
@@ -224,11 +229,13 @@ Settings:
         modeNum := 4
     } Else If (mode = "TG (2 key asym.)") {
         modeNum := 5
+    } Else If (mode = "LT (1 key)") {
+        modeNum := 6
     } Else {
         modeNum := 0
     }
     Gui, Add, Text,, Hotkey Mode:
-    Gui, Add, DropDownList, vGuiMode Choose%modeNum%, MO (1 key)|TG (1 key)|MO (2 key sym.)|MO (2 key asym.)|TG (2 key asym.)
+    Gui, Add, DropDownList, vGuiMode Choose%modeNum%, MO (1 key)|TG (1 key)|MO (2 key sym.)|MO (2 key asym.)|TG (2 key asym.) |LT (1 key)
 
     Gui, Add, Text,, Hold Duration:
     Gui, Add, Edit, vGuiHoldDurationEdit
@@ -396,6 +403,11 @@ HotkeyOn:
         If (active = 0) {
             ScrollingActivate()
         }
+    } Else If (mode = "LT (1 key)") {
+        If (tapDetected = 0) {
+            tapDetected := 1
+            SetTimer, TimerTap, -%holdDuration%
+        }
     }
 return
 
@@ -433,6 +445,16 @@ HotkeyOff:
         } Else If (fsmState = 8) {
             fsmState := 9
             Send {%smoothTrackballScrollingShortcut% up}
+        }
+    } Else If (mode = "LT (1 key)") {
+        If (tapDetected = 1) {
+            tapDetected := 0
+            Send {%smoothTrackballScrollingShortcut%}
+        } Else If (tapDetected = 2) {
+            tapDetected := 0
+                If (active = 1) {
+                    ScrollingDeactivate()
+            }
         }
     }
 return
@@ -533,6 +555,16 @@ TimerHold:
     } Else If (fsmState = 2) {
         fsmState := 4
         Send {%smoothTrackballScrollingShortcut2% down}
+    }
+return
+
+TimerTap:
+    ; Check if the key has been pressed and the timer has expired
+    If (tapDetected = 1) {
+        ; Change the state of tapDetected to indicate a long press has been detected
+        tapDetected := 2
+        ; Activate smooth scrolling
+        ScrollingActivate()
     }
 return
 
